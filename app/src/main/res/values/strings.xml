@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Personal Context</string>
+    <string name="notification_listener_label">个人上下文采集</string>
+</resources>
