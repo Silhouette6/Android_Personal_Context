@@ -7,6 +7,7 @@ import com.fish.personalcontext.App
 import com.fish.personalcontext.data.db.AppDatabase
 import com.fish.personalcontext.data.db.SyncKeys
 import com.fish.personalcontext.util.Permissions
+import com.fish.personalcontext.util.TimeFmt
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,11 +21,21 @@ class SettingsViewModel(private val app: App) : ViewModel() {
         val notificationAccess: Boolean = false,
         val usageAccess: Boolean = false,
         val listenerConnectedAt: Long? = null,
+        val listenerDisconnectedAt: Long? = null,
         val lastUsageSyncAt: Long? = null,
         val retentionDays: Int = 0,
         val totalEvents: Long = 0,
         val dbSizeBytes: Long = 0,
-    )
+    ) {
+        /** 三态：从未连接 / 已连接 / 已断开（帮助定位 ROM 杀绑定问题） */
+        val listenerStatus: String
+            get() = when {
+                listenerConnectedAt == null -> "从未连接"
+                listenerDisconnectedAt == null || listenerConnectedAt >= listenerDisconnectedAt ->
+                    "已连接 · ${TimeFmt.dateTime(listenerConnectedAt)}"
+                else -> "已断开 · ${TimeFmt.dateTime(listenerDisconnectedAt)}"
+            }
+    }
 
     private val _ui = MutableStateFlow(Ui())
     val ui: StateFlow<Ui> = _ui.asStateFlow()
@@ -35,13 +46,15 @@ class SettingsViewModel(private val app: App) : ViewModel() {
             combine(
                 repository.observeTotalCount(),
                 repository.observeSyncState(SyncKeys.LISTENER_CONNECTED_AT),
+                repository.observeSyncState(SyncKeys.LISTENER_DISCONNECTED_AT),
                 repository.observeSyncState(SyncKeys.LAST_USAGE_SYNC_AT),
                 repository.observeSyncState(SyncKeys.RETENTION_DAYS),
-            ) { total, connectedAt, syncAt, retention ->
+            ) { total, connectedAt, disconnectedAt, syncAt, retention ->
                 _ui.update {
                     it.copy(
                         totalEvents = total,
                         listenerConnectedAt = connectedAt?.toLongOrNull(),
+                        listenerDisconnectedAt = disconnectedAt?.toLongOrNull(),
                         lastUsageSyncAt = syncAt?.toLongOrNull(),
                         retentionDays = retention?.toIntOrNull() ?: 0,
                         dbSizeBytes = dbSizeBytes(),

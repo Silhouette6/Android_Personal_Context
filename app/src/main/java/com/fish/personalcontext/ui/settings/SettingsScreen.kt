@@ -80,10 +80,7 @@ fun SettingsScreen(
         }
 
         Section("采集器")
-        InfoRow(
-            "通知监听",
-            ui.listenerConnectedAt?.let { "上次连接 ${TimeFmt.dateTime(it)}" } ?: "等待连接",
-        )
+        InfoRow("通知监听", ui.listenerStatus)
         InfoRow(
             "使用统计",
             ui.lastUsageSyncAt?.let { "上次同步 ${TimeFmt.dateTime(it)}" } ?: "尚未同步",
