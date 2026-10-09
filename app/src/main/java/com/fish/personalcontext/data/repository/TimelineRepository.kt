@@ -58,13 +58,15 @@ class TimelineRepository(
             val sessions = TimelineReducer.reduce(
                 rows.map { it.toDomain() }.filterNot { appInfoCache.isDisplayNoise(it.packageName) }
             )
+            // 仍在前台的开放会话只统计到当前时刻，不把"使用中"夸大到日末
+            val effectiveEnd = minOf(end, System.currentTimeMillis())
             val durations = sessions
                 .groupBy { it.packageName }
                 .map { (pkg, list) ->
                     AppDuration(
                         packageName = pkg,
                         appName = list.first().appName ?: pkg,
-                        millis = list.sumOf { (it.endTime ?: end) - it.startTime }.coerceAtLeast(0),
+                        millis = list.sumOf { (it.endTime ?: effectiveEnd) - it.startTime }.coerceAtLeast(0),
                     )
                 }
                 .sortedByDescending { it.millis }

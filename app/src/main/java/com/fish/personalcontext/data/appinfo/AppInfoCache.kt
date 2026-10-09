@@ -27,20 +27,20 @@ class AppInfoCache(private val pm: PackageManager) {
 
     /**
      * 桌面/系统 UI 的 RESUMED 对时间轴是噪音（每次回桌面都会触发），仅在展示层过滤；
-     * 原始事件照常入库。
+     * 原始事件照常入库。注意只过滤「当前默认桌面」——部分设备的 Settings 等应用
+     * 也会声明 HOME category，全量过滤会误杀真实使用记录（模拟器上实测踩过）。
      */
     fun isDisplayNoise(packageName: String?): Boolean {
         if (packageName == null) return false
         if (packageName == "com.android.systemui") return true
-        val homes = homePackages ?: run {
+        val home = homePackages ?: run {
             val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
-            val set = buildSet {
-                addAll(pm.queryIntentActivities(intent, 0).mapNotNull { it.activityInfo?.packageName })
-                pm.resolveActivity(intent, 0)?.activityInfo?.packageName?.let { add(it) }
-            }
+            val resolved = pm.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY)
+                ?.activityInfo?.packageName
+            val set = if (resolved != null) setOf(resolved) else emptySet()
             homePackages = set
             set
         }
-        return packageName in homes
+        return packageName in home
     }
 }

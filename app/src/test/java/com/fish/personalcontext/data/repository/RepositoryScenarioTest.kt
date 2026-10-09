@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -175,5 +176,20 @@ class RepositoryScenarioTest {
     @Test
     fun `无数据的一天返回空时间轴`() = runBlocking {
         assertEquals(0, repository.getDailyTimeline(date).first().size)
+    }
+
+    @Test
+    fun `开放会话时长只统计到当前时刻而非日末`() = runBlocking {
+        val openTs = System.currentTimeMillis() - 90_000
+        db.timelineEventDao().insertAllIgnoring(
+            listOf(usageEvent(EventType.APP_OPEN, "com.longrunning", "长开应用", openTs))
+        )
+
+        val stats = repository.getDailyStats(date).first()
+        val duration = stats.appDurations.single().millis
+
+        // 应封顶到 now（≈90s+），绝不能是"到当天结束"的十几个小时
+        val sinceOpen = System.currentTimeMillis() - openTs
+        assertTrue(duration in (sinceOpen - 5_000)..(sinceOpen + 60_000))
     }
 }
